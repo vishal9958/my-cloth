@@ -1,0 +1,50 @@
+name: Build Android APK
+
+on:
+  # This workflow will run when you manually trigger it from the GitHub website
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: EAS Build (Android)
+    runs-on: ubuntu-latest # This runs on a clean Linux server, solving your Windows issues
+
+    steps:
+      # 1. Check out your repository code
+      - name: 🏗 Check out code
+        uses: actions/checkout@v4
+
+      # 2. Set up Node.js environment
+      - name: 🏗 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18 # Use a compatible Node version
+          cache: 'npm'
+
+      # 3. Setup EAS CLI
+      - name: 🏗 Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          # This uses the token we saved in GitHub Secrets
+          expo-token: ${{ secrets.EXPO_TOKEN }}
+          packager: npm # We are using npm
+
+      # 4. Install project dependencies
+      - name: 📦 Install dependencies
+        run: npm install
+
+      # 5. Run the build command
+      - name: 🚀 Build app
+        # This is the exact command you were trying to run locally
+        # --non-interactive is added for automation
+        run: eas build -p android --profile preview --non-interactive
+
+      # 6. Find the built APK file
+      # This step finds the latest .apk file in the build directory
+      - name: 🔎 Find APK file
+        id: find_apk
+        run: |
+          # EAS build output is usually a URL, but we can configure it to output a file.
+          # For this simple setup, we will rely on EAS's default behavior which outputs a link.
+          # The build artifacts will be available on the Expo dashboard link provided in the logs.
+          echo "Build is complete. Check the Expo dashboard link in the 'Build app' step logs for the APK download."
