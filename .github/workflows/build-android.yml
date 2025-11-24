@@ -1,13 +1,12 @@
 name: Build Android APK
 
 on:
-  # This workflow will run when you manually trigger it from the GitHub website
   workflow_dispatch:
 
 jobs:
   build:
     name: EAS Build (Android)
-    runs-on: ubuntu-latest # This runs on a clean Linux server, solving your Windows issues
+    runs-on: ubuntu-latest
 
     steps:
       # 1. Check out your repository code
@@ -18,16 +17,20 @@ jobs:
       - name: 🏗 Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 18 # Use a compatible Node version
+          node-version: 18
           cache: 'npm'
 
-      # 3. Setup EAS CLI
-      - name: 🏗 Setup EAS
+      # --- NEW STEP: Explicitly install EAS CLI ---
+      - name: 📦 Install EAS CLI globally
+        run: npm install -g eas-cli
+      # --------------------------------------------
+
+      # 3. Authenticate with Expo
+      - name: 🏗 Setup Expo Auth
         uses: expo/expo-github-action@v8
         with:
-          # This uses the token we saved in GitHub Secrets
           expo-token: ${{ secrets.EXPO_TOKEN }}
-          packager: npm # We are using npm
+          packager: npm
 
       # 4. Install project dependencies
       - name: 📦 Install dependencies
@@ -35,16 +38,4 @@ jobs:
 
       # 5. Run the build command
       - name: 🚀 Build app
-        # This is the exact command you were trying to run locally
-        # --non-interactive is added for automation
         run: eas build -p android --profile preview --non-interactive
-
-      # 6. Find the built APK file
-      # This step finds the latest .apk file in the build directory
-      - name: 🔎 Find APK file
-        id: find_apk
-        run: |
-          # EAS build output is usually a URL, but we can configure it to output a file.
-          # For this simple setup, we will rely on EAS's default behavior which outputs a link.
-          # The build artifacts will be available on the Expo dashboard link provided in the logs.
-          echo "Build is complete. Check the Expo dashboard link in the 'Build app' step logs for the APK download."
