@@ -1,37 +1,75 @@
-name: Build Android APK
+name: EAS Android build (APK)
 
 on:
+  push:
+    branches:
+      - main
+      - release/**
   workflow_dispatch:
 
 jobs:
-  build:
-    name: EAS Build (Android)
+  build-android:
     runs-on: ubuntu-latest
-
+    env:
+      EXPO_CLI_NO_UPDATE_NOTIFIER: 1
     steps:
-      # 1. Check out repo
-      - name: 🏗 Check out code
+      - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      # 2. Setup Node
-      - name: 🏗 Setup Node.js
+      - name: Use Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 18
-          cache: 'npm'
+          node-version: '18'
 
-      # 3. Setup EAS auth (Uses your token)
-      - name: 🏗 Setup Expo Auth
-        uses: expo/expo-github-action@v8
+      - name: Cache node modules
+        uses: actions/cache@v4
         with:
-          expo-token: ${{ secrets.EXPO_TOKEN }}
-          packager: npm
+          path: |
+            ~/.npm
+            node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
 
-      # 4. Install dependencies
-      - name: 📦 Install dependencies
-        run: npm install
+      - name: Install dependencies + eas-cli
+        run: |
+          npm ci
+          npm i -g eas-cli
 
-      # 5. Run the build command (CHANGE IS HERE)
-      # We are using 'npx eas-cli' to ensure it finds and runs the tool
-      - name: 🚀 Build app
-        run: npx eas-cli build -p android --profile preview --non-interactive
+      - name: Configure Expo/EAS token
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          # Set up expo config for non-interactive login
+          mkdir -p ~/.expo
+          echo "${EXPO_TOKEN}" > ~/.expo/token
+          # Also set EAS token env var (some commands use this)
+          echo "EAS_TOKEN=${{ secrets.EAS_TOKEN }}" >> $GITHUB_ENV
+
+      - name: Validate expo project (optional)
+        run: npx expo config --type prebuild --platform android || true
+
+      - name: Run EAS build (android apk) - non-interactive
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          EAS_TOKEN: ${{ secrets.EAS_TOKEN }}
+        run: |
+          # ensure non interactive
+          eas build --platform android --profile preview --non-interactive
+
+      - name: Download EAS build artifact (if available)
+        if: success()
+        uses: actions/download-artifact@v4
+        with:
+          name: build
+          path: ./artifacts || true
+
+      - name: Upload produced APK as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: apk-artifact
+          path: |
+            ./artifacts/**
+            **/*.apk
