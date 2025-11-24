@@ -9,33 +9,29 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Check out your repository code
+      # 1. Check out repo
       - name: 🏗 Check out code
         uses: actions/checkout@v4
 
-      # 2. Set up Node.js environment
+      # 2. Setup Node
       - name: 🏗 Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 18
           cache: 'npm'
 
-      # --- NEW STEP: Explicitly install EAS CLI ---
-      - name: 📦 Install EAS CLI globally
-        run: npm install -g eas-cli
-      # --------------------------------------------
-
-      # 3. Authenticate with Expo
+      # 3. Setup EAS auth (Uses your token)
       - name: 🏗 Setup Expo Auth
         uses: expo/expo-github-action@v8
         with:
           expo-token: ${{ secrets.EXPO_TOKEN }}
           packager: npm
 
-      # 4. Install project dependencies
+      # 4. Install dependencies
       - name: 📦 Install dependencies
         run: npm install
 
-      # 5. Run the build command
+      # 5. Run the build command (CHANGE IS HERE)
+      # We are using 'npx eas-cli' to ensure it finds and runs the tool
       - name: 🚀 Build app
-        run: eas build -p android --profile preview --non-interactive
+        run: npx eas-cli build -p android --profile preview --non-interactive
