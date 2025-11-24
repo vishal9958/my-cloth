@@ -1,0 +1,44 @@
+# ----------------------------------------------------------
+# EAS Build Ignore File
+# This file tells EAS what NOT to upload from your computer.
+# ----------------------------------------------------------
+
+# First: Ignore EVERYTHING on the computer (stops it from looking in AppData)
+/*
+
+# Now: "Un-ignore" (allow) only these specific project files and folders
+# (Adding '!' in front of a name means "Do NOT ignore this")
+AppData/
+*/AppData/*
+**/AppData/*
+*.log
+node_modules
+.expo
+.expo-shared
+
+!app/
+!assets/
+!components/
+!constants/
+!context/
+!hooks/
+!scripts/
+
+!.firebaserc
+!app.json
+!eas.json
+!eslint.config.js
+!expo-env.d.ts
+!firebase.json
+!firebaseConfig.js
+!package.json
+!package-lock.json
+!README.md
+!tsconfig.json
+
+# Definitely keep these ignored (they should not go into the build)
+node_modules/
+.git/
+.expo/
+.vscode/
+dist/
