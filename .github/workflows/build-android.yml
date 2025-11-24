@@ -23,12 +23,10 @@ jobs:
         with:
           node-version: '18'
 
-      - name: Cache node modules
+      - name: Cache npm
         uses: actions/cache@v4
         with:
-          path: |
-            ~/.npm
-            node_modules
+          path: ~/.npm
           key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-node-
@@ -36,40 +34,39 @@ jobs:
       - name: Install dependencies + eas-cli
         run: |
           npm ci
-          npm i -g eas-cli
+          npm i -g eas-cli@>=3.0.0
 
-      - name: Configure Expo/EAS token
+      - name: Configure Expo token (non-interactive)
+        run: |
+          mkdir -p ~/.expo
+          echo "${{ secrets.EXPO_TOKEN }}" > ~/.expo/token
+          echo "EXPO_TOKEN set"
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-        run: |
-          # Set up expo config for non-interactive login
-          mkdir -p ~/.expo
-          echo "${EXPO_TOKEN}" > ~/.expo/token
-          # Also set EAS token env var (some commands use this)
-          echo "EAS_TOKEN=${{ secrets.EAS_TOKEN }}" >> $GITHUB_ENV
 
-      - name: Validate expo project (optional)
-        run: npx expo config --type prebuild --platform android || true
+      - name: Export EAS_TOKEN to environment (optional)
+        if: ${{ secrets.EAS_TOKEN != '' }}
+        run: echo "EAS_TOKEN=${{ secrets.EAS_TOKEN }}" >> $GITHUB_ENV
+
+      - name: Validate expo project (optional, non-fatal)
+        run: |
+          npx expo config --type prebuild --platform android || true
 
       - name: Run EAS build (android apk) - non-interactive
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
           EAS_TOKEN: ${{ secrets.EAS_TOKEN }}
         run: |
-          # ensure non interactive
-          eas build --platform android --profile preview --non-interactive
+          # Run build and capture output (non-interactive)
+          eas build --platform android --profile preview --non-interactive | tee eas-build.log
+          # Try to extract Expo/EAS build page URL (human-readable) and save
+          grep -Eo 'https://expo.dev/accounts[^ ]+' eas-build.log | head -n 1 > build-url.txt || echo "No build URL found in logs" > build-url.txt
+          echo "Build log saved and build-url.txt created"
 
-      - name: Download EAS build artifact (if available)
-        if: success()
-        uses: actions/download-artifact@v4
-        with:
-          name: build
-          path: ./artifacts || true
-
-      - name: Upload produced APK as artifact
+      - name: Upload build log and build-url
         uses: actions/upload-artifact@v4
         with:
-          name: apk-artifact
+          name: eas-build-logs
           path: |
-            ./artifacts/**
-            **/*.apk
+            eas-build.log
+            build-url.txt
