@@ -1,0 +1,74 @@
+name: EAS Android build (APK)
+
+on:
+  push:
+    branches:
+      - main
+      - release/**
+  workflow_dispatch:
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    env:
+      EXPO_CLI_NO_UPDATE_NOTIFIER: 1
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Cache npm
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
+      - name: Install dependencies + eas-cli
+        run: |
+          npm ci
+          npm i -g eas-cli@>=3.0.0
+
+      - name: Configure Expo token (non-interactive)
+        run: |
+          mkdir -p ~/.expo
+          echo "${{ secrets.EXPO_TOKEN }}" > ~/.expo/token
+          echo "EXPO_TOKEN set"
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Export EAS_TOKEN to environment (no conditional - safe if empty)
+        run: |
+          echo "EAS_TOKEN=${{ secrets.EAS_TOKEN }}" >> $GITHUB_ENV
+          echo "EAS_TOKEN exported (may be empty)"
+        # no 'if' here to avoid parse errors
+
+      - name: Validate expo project (optional, non-fatal)
+        run: |
+          npx expo config --type prebuild --platform android || true
+
+      - name: Run EAS build (android apk) - non-interactive
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          EAS_TOKEN: ${{ secrets.EAS_TOKEN }}
+        run: |
+          eas build --platform android --profile preview --non-interactive | tee eas-build.log
+          # Try to extract Expo/EAS build page URL (human-readable) and save
+          grep -Eo 'https://expo.dev/accounts[^ ]+' eas-build.log | head -n 1 > build-url.txt || echo "No build URL found in logs" > build-url.txt
+          echo "Build log saved and build-url.txt created"
+
+      - name: Upload build log and build-url
+        uses: actions/upload-artifact@v4
+        with:
+          name: eas-build-logs
+          path: |
+            eas-build.log
+            build-url.txt
